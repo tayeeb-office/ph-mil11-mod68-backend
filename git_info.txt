@@ -1,0 +1,9 @@
+echo "# ph-mil11-mod68-backend" >> README.md
+git init
+git add README.md
+git commit -m "first commit"
+git branch -M main
+git remote add origin https://github.com/tayeeb-office/ph-mil11-mod68-backend.git
+git push -u origin main
+
+Repo Link : https://github.com/tayeeb-office/ph-mil11-mod68-backend.git
