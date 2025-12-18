@@ -43,7 +43,7 @@ const verifyFBToken = async (req, res, next) => {
 
 module.exports = verifyFBToken;
 
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri =
   "mongodb+srv://assignment_11:8zYDGilWnFnjPBl3@cluster0.0nyvlxc.mongodb.net/?appName=Cluster0";
 
@@ -74,9 +74,14 @@ async function run() {
       res.send(result);
     });
 
-    app.get("/dashboard/requests", async (req, res) => {
+    // app.get("/dashboard/requests", async (req, res) => {
+    //   const result = await requestCollections.find().toArray();
+    //   res.status(200).send(result);
+    // });
+
+    app.get("/requests", verifyFBToken, async (req, res) => {
       const result = await requestCollections.find().toArray();
-      res.status(200).send(result);
+      res.send(result);
     });
 
     app.get("/users", verifyFBToken, async (req, res) => {
@@ -85,17 +90,25 @@ async function run() {
     });
 
     app.get("/dashboard/requests", async (req, res) => {
-      const email = req.query.email;
+      try {
+        const email = req.query.email;
 
-      if (!email)
-        return res.status(400).send({ message: "email query required" });
+        // if email exists => return only that user's requests
+        if (email) {
+          const result = await requestCollections
+            .find({ requesterEmail: email })
+            .sort({ _id: -1 })
+            .toArray();
+          return res.send(result);
+        }
 
-      const result = await requestCollections
-        .find({ requesterEmail: email })
-        .sort({ _id: -1 })
-        .toArray();
-
-      res.send(result);
+        // if no email => return all requests
+        const result = await requestCollections.find().toArray();
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to fetch requests" });
+      }
     });
 
     app.get("/users/role/:email", async (req, res) => {
@@ -138,6 +151,55 @@ async function run() {
       } catch (error) {
         console.error(error);
         res.status(500).send({ message: "Failed to update user status" });
+      }
+    });
+
+    app.patch("/update/user/role", verifyFBToken, async (req, res) => {
+      try {
+        const { email, role } = req.query;
+
+        if (!email || !role) {
+          return res
+            .status(400)
+            .send({ message: "Email and role are required" });
+        }
+
+        const query = { email };
+
+        const updaterole = {
+          $set: {
+            role: role,
+          },
+        };
+
+        const result = await userCollections.updateOne(query, updaterole);
+
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to update user role" });
+      }
+    });
+
+    app.patch("/update/request/status", verifyFBToken, async (req, res) => {
+      try {
+        const { id, status } = req.query;
+
+        if (!id || !status) {
+          return res
+            .status(400)
+            .send({ message: "ID and status are required" });
+        }
+
+        const query = { _id: new ObjectId(id) };
+        const updateStatus = { $set: { status } };
+
+        const result = await requestCollections.updateOne(query, updateStatus);
+
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to update request status" });
       }
     });
 
