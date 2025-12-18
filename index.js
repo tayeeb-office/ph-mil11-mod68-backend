@@ -424,6 +424,47 @@ async function run() {
       }
     });
 
+    app.get("/users/:email", async (req, res) => {
+      try {
+        const email = req.params.email;
+        const user = await userCollections.findOne({ email });
+
+        if (!user) return res.status(404).send({ message: "User not found" });
+        res.send(user);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: "Failed to load user" });
+      }
+    });
+
+    app.patch("/users/:email", verifyFBToken, async (req, res) => {
+      try {
+        const email = req.params.email;
+
+        if (email !== req.decoded_email) {
+          return res.status(403).send({ message: "Forbidden" });
+        }
+
+        const { username, bloodGroup, district, upazila, imageUrl } = req.body;
+
+        const updateDoc = {
+          $set: {
+            username,
+            bloodGroup,
+            district,
+            upazila,
+            ...(imageUrl ? { imageUrl } : {}),
+          },
+        };
+
+        const result = await userCollections.updateOne({ email }, updateDoc);
+        res.send(result);
+      } catch (err) {
+        console.error(err);
+        res.status(500).send({ message: "Failed to update profile" });
+      }
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
