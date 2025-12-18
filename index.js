@@ -7,6 +7,9 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+const stripe = require("stripe")(process.env.STRIPE_SECRET_KEY);
+const crypto = require("crypto");
+
 const admin = require("firebase-admin");
 const decoded = Buffer.from(process.env.FB_SERVICE_KEY, "base64").toString(
   "utf8"
@@ -41,8 +44,6 @@ const verifyFBToken = async (req, res, next) => {
   }
 };
 
-module.exports = verifyFBToken;
-
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const uri =
   "mongodb+srv://assignment_11:8zYDGilWnFnjPBl3@cluster0.0nyvlxc.mongodb.net/?appName=Cluster0";
@@ -65,6 +66,7 @@ async function run() {
     const database = client.db("assignment_11");
     const userCollections = database.collection("user");
     const requestCollections = database.collection("request");
+    const fundingCollections = database.collection("fund");
 
     app.post("/users", async (req, res) => {
       const userInfo = req.body;
@@ -73,11 +75,6 @@ async function run() {
       const result = await userCollections.insertOne(userInfo);
       res.send(result);
     });
-
-    // app.get("/dashboard/requests", async (req, res) => {
-    //   const result = await requestCollections.find().toArray();
-    //   res.status(200).send(result);
-    // });
 
     app.get("/requests", verifyFBToken, async (req, res) => {
       const result = await requestCollections.find().toArray();
@@ -102,7 +99,6 @@ async function run() {
           return res.send(result);
         }
 
-        // if no email => return all requests
         const result = await requestCollections.find().toArray();
         res.send(result);
       } catch (error) {
@@ -285,6 +281,125 @@ async function run() {
         res.status(500).send({ message: "Failed to delete request" });
       }
     });
+
+    app.get("/my-request", verifyFBToken, async (req, res) => {
+      try {
+        const email = req.decoded_email;
+
+        const size = Number(req.query.size) || 10;
+        const page = Number(req.query.page) || 0;
+
+        const query = { requesterEmail: email };
+
+        const requests = await requestCollections
+          .find(query)
+          .sort({ _id: -1 })
+          .limit(size)
+          .skip(size * page)
+          .toArray();
+
+        const totalRequest = await requestCollections.countDocuments(query);
+
+        res.send({ request: requests, totalRequest });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to load my requests" });
+      }
+    });
+
+    app.get("/all-request", verifyFBToken, async (req, res) => {
+      try {
+        const size = Number(req.query.size) || 10;
+        const page = Number(req.query.page) || 0;
+
+        const requests = await requestCollections
+          .find({})
+          .sort({ _id: -1 })
+          .limit(size)
+          .skip(size * page)
+          .toArray();
+
+        const totalRequest = await requestCollections.countDocuments({});
+
+        res.send({ request: requests, totalRequest });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to load all requests" });
+      }
+    });
+
+    app.post("/create-payment-checkout", async (req, res) => {
+      try {
+        const information = req.body;
+
+        const amount = Number(information.donateAmount);
+        if (!amount || amount < 1)
+          return res.status(400).send({ message: "Invalid amount" });
+        const amountInCents = Math.round(amount * 100);
+
+        const session = await stripe.checkout.sessions.create({
+          line_items: [
+            {
+              price_data: {
+                currency: "usd",
+                unit_amount: amountInCents,
+                product_data: {
+                  name: "Please Donate",
+                },
+              },
+              quantity: 1,
+            },
+          ],
+          mode: "payment",
+          metadata: {
+            donorName: information?.donorName,
+          },
+          customer_email: information.donorEmail,
+          success_url: `${process.env.SITE_DOMAIN}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
+          cancel_url: `${process.env.SITE_DOMAIN}/payment-cancelled`,
+        });
+
+        res.send({ url: session.url });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to create checkout session" });
+      }
+    });
+
+    app.post("/funding-history", verifyFBToken, async (req, res) => {
+      try {
+        const fundingInfo = {
+          donorName: req.body.donorName,
+          donorEmail: req.decoded_email,
+          donateAmount: Number(req.body.donateAmount),
+          createdAt: new Date(),
+        };
+
+        const result = await fundingCollections.insertOne(fundingInfo);
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to save funding history" });
+      }
+    });
+
+    app.get("/funding-history", verifyFBToken, async (req, res) => {
+      try {
+        const email = req.decoded_email;
+
+        const result = await fundingCollections
+          .find({ donorEmail: email })
+          .sort({ createdAt: -1 })
+          .toArray();
+
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to fetch funding history" });
+      }
+    });
+
+    
 
     await client.db("admin").command({ ping: 1 });
     console.log(
