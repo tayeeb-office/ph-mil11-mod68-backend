@@ -203,6 +203,89 @@ async function run() {
       }
     });
 
+    app.get("/requests/:id", verifyFBToken, async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await requestCollections.findOne({
+          _id: new ObjectId(id),
+        });
+
+        if (!result) {
+          return res.status(404).send({ message: "Request not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to fetch request" });
+      }
+    });
+
+    app.patch("/requests/:id", verifyFBToken, async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const {
+          recipientName,
+          bloodGroup,
+          district,
+          upazila,
+          address,
+          hospitalName,
+          donationDate,
+          donationTime,
+          message,
+        } = req.body;
+
+        const query = { _id: new ObjectId(id) };
+
+        const updateDoc = {
+          $set: {
+            recipientName,
+            bloodGroup,
+            district,
+            upazila,
+            address,
+            hospitalName,
+            donationDate,
+            donationTime,
+            message: message || "",
+          },
+        };
+
+        const result = await requestCollections.updateOne(query, updateDoc);
+
+        if (result.matchedCount === 0) {
+          return res.status(404).send({ message: "Request not found" });
+        }
+
+        res.send(result);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to update request" });
+      }
+    });
+
+    app.delete("/requests/:id", verifyFBToken, async (req, res) => {
+      try {
+        const { id } = req.params;
+
+        const result = await requestCollections.deleteOne({
+          _id: new ObjectId(id),
+        });
+
+        if (result.deletedCount === 0) {
+          return res.status(404).send({ message: "Request not found" });
+        }
+
+        res.send({ message: "Deleted successfully", result });
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to delete request" });
+      }
+    });
+
     await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
