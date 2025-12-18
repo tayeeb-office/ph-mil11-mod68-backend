@@ -399,7 +399,30 @@ async function run() {
       }
     });
 
-    
+    app.get("/donor-search", async (req, res) => {
+      try {
+        const { bloodGroup, district, upazila } = req.query;
+
+        const query = {
+          role: "donor",
+          status: "active",
+        };
+
+        if (bloodGroup) query.bloodGroup = bloodGroup;
+        if (district) query.district = district;
+        if (upazila) query.upazila = upazila;
+
+        const donors = await userCollections
+          .find(query)
+          .sort({ _id: -1 })
+          .toArray();
+
+        res.send(donors);
+      } catch (error) {
+        console.error(error);
+        res.status(500).send({ message: "Failed to search donors" });
+      }
+    });
 
     await client.db("admin").command({ ping: 1 });
     console.log(
