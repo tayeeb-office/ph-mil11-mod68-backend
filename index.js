@@ -45,8 +45,7 @@ const verifyFBToken = async (req, res, next) => {
 };
 
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
-const uri =
-  "mongodb+srv://assignment_11:8zYDGilWnFnjPBl3@cluster0.0nyvlxc.mongodb.net/?appName=Cluster0";
+const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.0nyvlxc.mongodb.net/?appName=Cluster0`;
 
 // Create a MongoClient with a MongoClientOptions object to set the Stable API version
 const client = new MongoClient(uri, {
@@ -60,7 +59,7 @@ const client = new MongoClient(uri, {
 async function run() {
   try {
     // Connect the client to the server	(optional starting in v4.7)
-    await client.connect();
+    // await client.connect();
     // Send a ping to confirm a successful connection
 
     const database = client.db("assignment_11");
@@ -352,7 +351,7 @@ async function run() {
           ],
           mode: "payment",
           metadata: {
-            donorName: information?.donorName,
+            donorName: information?.donorName || "Anonymous",
           },
           customer_email: information.donorEmail,
           success_url: `${process.env.SITE_DOMAIN}/payment-success?session_id={CHECKOUT_SESSION_ID}`,
@@ -465,7 +464,7 @@ async function run() {
       }
     });
 
-    await client.db("admin").command({ ping: 1 });
+    // await client.db("admin").command({ ping: 1 });
     console.log(
       "Pinged your deployment. You successfully connected to MongoDB!"
     );
@@ -480,6 +479,8 @@ app.get("/", (req, res) => {
   res.send("Hello Developers");
 });
 
-app.listen(port, () => {
-  console.log(`server is runnion on ${port}`);
-});
+module.exports = app;
+
+// app.listen(port, () => {
+//   console.log(`server is runnion on ${port}`);
+// });
