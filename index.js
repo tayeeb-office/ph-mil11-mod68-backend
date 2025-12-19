@@ -479,7 +479,7 @@ app.get("/", (req, res) => {
   res.send("Hello Developers");
 });
 
-module.exports = app;
+// module.exports = app;
 
 // app.listen(port, () => {
 //   console.log(`server is runnion on ${port}`);
