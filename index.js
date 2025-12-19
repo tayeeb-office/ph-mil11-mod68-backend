@@ -481,6 +481,6 @@ app.get("/", (req, res) => {
 
 module.exports = app;
 
-// app.listen(port, () => {
-//   console.log(`server is runnion on ${port}`);
-// });
+app.listen(port, () => {
+  console.log(`server is runnion on ${port}`);
+});
