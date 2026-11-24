@@ -64,6 +64,8 @@ async function run() {
 
     const database = client.db("assignment_11");
     const userCollections = database.collection("user");
+    // never send stored passwords back to the client
+    const hidePass = { projection: { pass: 0 } };
     const requestCollections = database.collection("request");
     const fundingCollections = database.collection("fund");
 
@@ -81,7 +83,7 @@ async function run() {
     });
 
     app.get("/users", verifyFBToken, async (req, res) => {
-      const result = await userCollections.find().toArray();
+      const result = await userCollections.find({}, hidePass).toArray();
       res.status(200).send(result);
     });
 
@@ -110,7 +112,7 @@ async function run() {
       const { email } = req.params;
 
       const query = { email };
-      const result = await userCollections.findOne(query);
+      const result = await userCollections.findOne(query, hidePass);
 
       res.send(result);
     });
@@ -412,7 +414,7 @@ async function run() {
         if (upazila) query.upazila = upazila;
 
         const donors = await userCollections
-          .find(query)
+          .find(query, hidePass)
           .sort({ _id: -1 })
           .toArray();
 
@@ -426,7 +428,7 @@ async function run() {
     app.get("/users/:email", async (req, res) => {
       try {
         const email = req.params.email;
-        const user = await userCollections.findOne({ email });
+        const user = await userCollections.findOne({ email }, hidePass);
 
         if (!user) return res.status(404).send({ message: "User not found" });
         res.send(user);
